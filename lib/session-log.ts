@@ -11,6 +11,7 @@
  *   salvo que la sesión haya terminado sola.
  */
 
+import { MAX_BPM, MIN_BPM } from "./heart-rate"
 import { newId } from "./routine-storage"
 
 export const SESSIONS_KEY = "powerlock:sessions:v1"
@@ -46,6 +47,9 @@ export interface SessionRecord {
   /** Rondas (Tabata/EMOM/FGB) o series (rutina) superadas. 0 en cronómetro. */
   rounds: number
   completed: boolean
+  /** Pulso medio y máximo de la sesión, SOLO si un sensor Bluetooth lo midió (si no, no existen). */
+  avgBpm?: number
+  maxBpm?: number
 }
 
 /** Foto de una sesión en curso, guardada cada pocos segundos para poder recuperarla. */
@@ -58,6 +62,8 @@ export interface SessionCheckpoint {
   routineId?: string
   routineName?: string
   rounds: number
+  avgBpm?: number
+  maxBpm?: number
 }
 
 export function newSessionId(): string {
@@ -100,6 +106,18 @@ function isKind(v: unknown): v is SessionKind {
   return typeof v === "string" && (SESSION_KINDS as readonly string[]).includes(v)
 }
 
+/**
+ * Pulso guardado: se acepta solo si ambos valores son plausibles y coherentes (media <= máximo).
+ * Se DESCARTA (no se "corrige") lo dudoso: mejor sin dato que con un dato inventado.
+ */
+function heartFields(rawAvg: unknown, rawMax: unknown): { avgBpm?: number; maxBpm?: number } {
+  const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= MIN_BPM && v <= MAX_BPM
+  if (!ok(rawAvg) || !ok(rawMax)) return {}
+  const avgBpm = Math.round(rawAvg)
+  const maxBpm = Math.round(rawMax)
+  return avgBpm <= maxBpm ? { avgBpm, maxBpm } : {}
+}
+
 function sanitizeSession(raw: unknown): SessionRecord | null {
   if (!isRecord(raw)) return null
   const id = typeof raw.id === "string" && raw.id !== "" ? raw.id : null
@@ -118,6 +136,7 @@ function sanitizeSession(raw: unknown): SessionRecord | null {
     routineName: optText(raw.routineName),
     rounds,
     completed: raw.completed === true,
+    ...heartFields(raw.avgBpm, raw.maxBpm),
   }
 }
 
@@ -201,6 +220,7 @@ export function parseCheckpoint(raw: string | null): SessionCheckpoint | null {
     routineId: optText(c.routineId),
     routineName: optText(c.routineName),
     rounds,
+    ...heartFields(c.avgBpm, c.maxBpm),
   }
 }
 
@@ -217,6 +237,7 @@ export function checkpointToSession(cp: SessionCheckpoint): SessionRecord | null
     routineName: cp.routineName,
     rounds: cp.rounds,
     completed: false,
+    ...heartFields(cp.avgBpm, cp.maxBpm),
   }
 }
 
@@ -326,4 +347,10 @@ export function roundsLabel(s: Pick<SessionRecord, "kind" | "rounds">): string |
   if (s.rounds <= 0 || s.kind === "stopwatch") return null
   const unit = s.kind === "routine" ? "serie" : "ronda"
   return `${s.rounds} ${unit}${s.rounds === 1 ? "" : "s"}`
+}
+
+/** "142 prom · 171 máx", o null si esa sesión no tiene pulso medido. */
+export function heartLabel(s: Pick<SessionRecord, "avgBpm" | "maxBpm">): string | null {
+  if (s.avgBpm === undefined || s.maxBpm === undefined) return null
+  return `${s.avgBpm} prom · ${s.maxBpm} máx`
 }

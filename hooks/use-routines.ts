@@ -65,7 +65,10 @@ export function useRoutines() {
     setRoutines((prev) => prev.filter((r) => r.id !== id))
   }, [])
 
+  /** Sustituye todas las rutinas (restaurar una copia de seguridad). */
+  const replaceAll = useCallback((list: SavedRoutine[]) => setRoutines(list), [])
+
   const dismissNotice = useCallback(() => setNotice(null), [])
 
-  return { routines, loaded, notice, saveFailed, addRoutine, updateRoutine, deleteRoutine, dismissNotice }
+  return { routines, loaded, notice, saveFailed, addRoutine, updateRoutine, deleteRoutine, replaceAll, dismissNotice }
 }

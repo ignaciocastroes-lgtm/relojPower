@@ -5,6 +5,7 @@ import {
   CHECKPOINT_KEY,
   SESSIONS_KEY,
   checkpointToSession,
+  normalizeSessions,
   parseCheckpoint,
   parseSessions,
   serializeCheckpoint,
@@ -97,6 +98,11 @@ export function useSessions() {
     setSessions((prev) => prev.filter((s) => s.id !== id))
   }, [])
 
+  /** Sustituye todo el historial (restaurar una copia de seguridad). */
+  const replaceAll = useCallback((list: SessionRecord[]) => {
+    setSessions(normalizeSessions(list))
+  }, [])
+
   /** Guarda (o borra, con null) la foto de la sesión en curso. Escritura directa: no toca el estado. */
   const saveCheckpoint = useCallback((checkpoint: SessionCheckpoint | null) => {
     try {
@@ -109,5 +115,5 @@ export function useSessions() {
 
   const dismissNotice = useCallback(() => setNotice(null), [])
 
-  return { sessions, loaded, notice, saveFailed, recordSession, deleteSession, saveCheckpoint, dismissNotice }
+  return { sessions, loaded, notice, saveFailed, recordSession, deleteSession, replaceAll, saveCheckpoint, dismissNotice }
 }

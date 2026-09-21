@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { Search, X, Filter, Dumbbell, Target, Play } from "lucide-react"
 import { exerciseDatabase, bodyParts, equipmentTypes, type ExerciseDBItem } from "@/lib/exercise-db"
 import { cn } from "@/lib/utils"
 import { VideoDemoModal } from "./video-demo-modal"
+import { ExerciseThumb } from "./exercise-thumb"
 
 interface ExerciseLibraryProps {
   /** Si se pasa, tocar un ejercicio lo elige (modo selector). Si no, abre su demo en video. */
@@ -19,8 +20,6 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [demoExercise, setDemoExercise] = useState<ExerciseDBItem | null>(null)
-  const bodyPartsScrollRef = useRef<HTMLDivElement>(null)
-  const equipmentScrollRef = useRef<HTMLDivElement>(null)
   
   const filteredExercises = useMemo(() => {
     return exerciseDatabase.filter((exercise) => {
@@ -109,7 +108,7 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
   }
   
   return (
-    <div className={cn("bg-background", variant === "page" ? "pb-28" : "pb-8")}>
+    <div className={cn("bg-background", variant === "page" ? "pb-fab" : "pb-8")}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-lg border-b border-border/50">
         <div className="px-5 pt-4 pb-4">
@@ -133,9 +132,12 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
+                aria-label="Borrar búsqueda"
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center"
               >
-                <X className="w-4 h-4 text-muted-foreground" />
+                <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </span>
               </button>
             )}
           </div>
@@ -182,10 +184,7 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
                   Grupo Muscular
                 </span>
               </div>
-              <div 
-                ref={bodyPartsScrollRef}
-                className="flex gap-2 overflow-x-auto px-5 pb-2 scrollbar-hide"
-              >
+              <div className="flex gap-2 overflow-x-auto px-5 pb-2 scrollbar-hide">
                 {bodyParts.map((bodyPart) => (
                   <button
                     key={bodyPart}
@@ -211,10 +210,7 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
                   Equipo
                 </span>
               </div>
-              <div 
-                ref={equipmentScrollRef}
-                className="flex gap-2 overflow-x-auto px-5 pb-2 scrollbar-hide"
-              >
+              <div className="flex gap-2 overflow-x-auto px-5 pb-2 scrollbar-hide">
                 {equipmentTypes.map((equipment) => (
                   <button
                     key={equipment}
@@ -257,10 +253,10 @@ export function ExerciseLibrary({ onSelectExercise, variant = "page" }: Exercise
               >
                 {/* Exercise Image */}
                 <div className="relative aspect-square overflow-hidden">
-                  <img
-                    src={exercise.gifUrl}
-                    alt={exercise.name}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  <ExerciseThumb
+                    url={exercise.gifUrl}
+                    name={exercise.name}
+                    className="w-full h-full transition-transform duration-300 group-hover:scale-110"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   {exercise.videoId && (

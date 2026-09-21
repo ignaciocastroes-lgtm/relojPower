@@ -76,7 +76,7 @@ export function RoutinesScreen({
     <>
       {/* La barra de pestañas queda FUERA del scroll: nada se le desliza por debajo. */}
       <div className="h-dvh flex flex-col">
-        <div className="shrink-0 bg-background border-b border-border/50 pt-12 px-5 pb-3">
+        <div className="shrink-0 bg-background border-b border-border/50 pt-top px-5 pb-3">
           <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl">
             <button
               onClick={() => setActiveTab("library")}
@@ -109,7 +109,7 @@ export function RoutinesScreen({
           {activeTab === "library" && <ExerciseLibrary variant="page" />}
 
           {activeTab === "routines" && (
-            <div className="bg-background pb-28">
+            <div className="bg-background pb-fab">
               <div className="px-5 pt-4 pb-4">
                 <h1 className="text-3xl font-bold text-foreground mb-1">Mis Rutinas</h1>
                 <p className="text-muted-foreground">
@@ -171,7 +171,7 @@ export function RoutinesScreen({
                         className="relative p-4 rounded-2xl bg-secondary/50 hover:bg-secondary/70 transition-colors"
                       >
                         <div className="flex items-start gap-4">
-                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0">
+                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 max-[359px]:hidden">
                             <Dumbbell className="w-7 h-7 text-primary" />
                           </div>
 
@@ -208,7 +208,7 @@ export function RoutinesScreen({
 
                               {activeMenu === routine.id && (
                                 <>
-                                  <div className="fixed inset-0 z-40" onClick={() => setActiveMenu(null)} />
+                                  <div className="fixed inset-0 z-[45]" onClick={() => setActiveMenu(null)} />
                                   <div className="absolute right-0 top-12 z-50 w-48 rounded-xl bg-popover border border-border shadow-xl overflow-hidden">
                                     <button
                                       onClick={() => handleEditRoutine(routine)}
@@ -248,11 +248,12 @@ export function RoutinesScreen({
       </div>
 
       {/* Botón flotante: un solo camino para crear, en ambas pestañas. */}
-      {!builder && (
+      {/* Con la lista vacía ya hay un botón "Crear Rutina" en pantalla: el flotante se pisaría con él. */}
+      {!builder && !(activeTab === "routines" && routines.length === 0) && (
         <button
           onClick={openNew}
           aria-label="Crear rutina"
-          className="fixed bottom-28 right-5 px-5 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-transform z-40 font-semibold"
+          className="fixed bottom-nav right-shell px-5 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-transform z-30 font-semibold"
         >
           <Plus className="w-6 h-6" />
           Crear Rutina

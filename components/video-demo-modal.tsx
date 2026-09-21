@@ -28,7 +28,7 @@ export function VideoDemoModal({ isOpen, onClose, exerciseName, videoId }: Video
   
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -36,7 +36,8 @@ export function VideoDemoModal({ isOpen, onClose, exerciseName, videoId }: Video
       
       {/* Modal Content */}
       <div 
-        className="relative w-full max-w-2xl z-10"
+        className="relative z-10 w-full"
+        style={{ maxWidth: "min(42rem, max(16rem, calc((100dvh - 12rem) * 16 / 9)))" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -52,6 +53,7 @@ export function VideoDemoModal({ isOpen, onClose, exerciseName, videoId }: Video
           </div>
           <button
             onClick={onClose}
+            aria-label="Cerrar video"
             className="w-10 h-10 rounded-full bg-secondary/80 flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
           >
             <X className="w-5 h-5" />
@@ -72,6 +74,7 @@ export function VideoDemoModal({ isOpen, onClose, exerciseName, videoId }: Video
           <div className="absolute bottom-4 right-4 flex items-center gap-2">
             <button
               onClick={() => setIsMuted(!isMuted)}
+              aria-label={isMuted ? "Activar sonido" : "Silenciar"}
               className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/80 transition-colors"
             >
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -81,6 +84,18 @@ export function VideoDemoModal({ isOpen, onClose, exerciseName, videoId }: Video
           {/* Neon Border Glow */}
           <div className="absolute inset-0 rounded-2xl border border-primary/30 pointer-events-none" />
         </div>
+
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          ¿No carga?{" "}
+          <a
+            href={`https://www.youtube.com/watch?v=${videoId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline"
+          >
+            Ábrelo en YouTube
+          </a>
+        </p>
       </div>
     </div>
   )

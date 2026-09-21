@@ -390,15 +390,6 @@ export const exerciseDatabase: ExerciseDBItem[] = [
     target: "Cuádriceps",
     secondaryMuscles: ["Glúteos", "Isquiotibiales"]
   },
-  {
-    id: "ex-009",
-    name: "Goblet Squat",
-    bodyPart: "Cuádriceps",
-    equipment: "Kettlebell",
-    gifUrl: "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=400&h=400&fit=crop",
-    target: "Cuádriceps",
-    secondaryMuscles: ["Glúteos", "Core"]
-  },
   // Espalda exercises
   {
     id: "ex-010",
@@ -419,15 +410,6 @@ export const exerciseDatabase: ExerciseDBItem[] = [
     secondaryMuscles: ["Bíceps", "Romboides"]
   },
   {
-    id: "ex-012",
-    name: "Remo con Mancuerna",
-    bodyPart: "Espalda",
-    equipment: "Mancuernas",
-    gifUrl: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&h=400&fit=crop",
-    target: "Dorsal",
-    secondaryMuscles: ["Bíceps", "Core"]
-  },
-  {
     id: "ex-013",
     name: "Jalón al Pecho",
     bodyPart: "Espalda",
@@ -435,15 +417,6 @@ export const exerciseDatabase: ExerciseDBItem[] = [
     gifUrl: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=400&h=400&fit=crop",
     target: "Dorsal",
     secondaryMuscles: ["Bíceps", "Romboides"]
-  },
-  {
-    id: "ex-014",
-    name: "Dominadas",
-    bodyPart: "Espalda",
-    equipment: "Peso Corporal",
-    gifUrl: "https://images.unsplash.com/photo-1598971457999-ca4ef48a9a71?w=400&h=400&fit=crop",
-    target: "Dorsal",
-    secondaryMuscles: ["Bíceps", "Core"]
   },
   {
     id: "ex-015",
@@ -492,15 +465,6 @@ export const exerciseDatabase: ExerciseDBItem[] = [
     secondaryMuscles: ["Tríceps", "Hombros"]
   },
   {
-    id: "ex-020",
-    name: "Flexiones",
-    bodyPart: "Pectoral",
-    equipment: "Peso Corporal",
-    gifUrl: "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=400&h=400&fit=crop",
-    target: "Pectoral Mayor",
-    secondaryMuscles: ["Tríceps", "Core"]
-  },
-  {
     id: "ex-021",
     name: "Cruce de Cables",
     bodyPart: "Pectoral",
@@ -518,15 +482,6 @@ export const exerciseDatabase: ExerciseDBItem[] = [
     gifUrl: "https://images.unsplash.com/photo-1532384748853-8f54a8f476e2?w=400&h=400&fit=crop",
     target: "Deltoides Anterior",
     secondaryMuscles: ["Tríceps", "Core"]
-  },
-  {
-    id: "ex-023",
-    name: "Elevaciones Laterales",
-    bodyPart: "Hombros",
-    equipment: "Mancuernas",
-    gifUrl: "https://images.unsplash.com/photo-1581009146145-b5ef050c149a?w=400&h=400&fit=crop",
-    target: "Deltoides Lateral",
-    secondaryMuscles: []
   },
   {
     id: "ex-024",

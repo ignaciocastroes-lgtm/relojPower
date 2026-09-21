@@ -19,6 +19,7 @@ import {
   buildIntervalPlan,
   buildRoutinePlan,
   buildStopwatchPlan,
+  completedWorkIndices,
   completedWorkSegments,
   createInitialState,
   describeTransition,
@@ -28,6 +29,11 @@ import {
   type Segment,
 } from "@/lib/timer-engine"
 import { playSignal, unlockAudio } from "@/lib/beeper"
+import { addHeartSample, emptyHeart, summarizeHeart, type HeartAccumulator } from "@/lib/heart-rate"
+import { useHeartRate } from "@/hooks/use-heart-rate"
+import { HeartRatePill } from "./heart-rate-pill"
+import { SetLogCard, type PendingSet } from "./set-log-card"
+import { detectRecords, formatKg, makeSet, suggestSet, type SetLog } from "@/lib/set-log"
 import { MIN_SESSION_SECONDS, newSessionId, type SessionCheckpoint, type SessionKind, type SessionRecord } from "@/lib/session-log"
 
 interface WorkoutTimerProps {
@@ -39,6 +45,10 @@ interface WorkoutTimerProps {
   onSessionEnd?: (session: SessionRecord) => void
   /** Foto de la sesión en curso cada pocos segundos; null cuando ya no hay sesión. */
   onCheckpoint?: (checkpoint: SessionCheckpoint | null) => void
+  /** Series ya registradas (para sugerir el último peso y detectar récords). */
+  sets: SetLog[]
+  /** El usuario confirmó una serie: guardarla. */
+  onLogSet: (set: SetLog) => void
 }
 
 type TimerMode = "tabata" | "emom" | "fgb" | "stopwatch" | "routine"
@@ -72,6 +82,8 @@ interface ActiveSession {
   /** Plan con el que arrancó (el plan actual puede cambiar antes de cerrarla). */
   plan: Segment[]
   lastCheckpointMs: number
+  /** Pulso medido por el sensor mientras el reloj corre (vacío si no hubo sensor). */
+  heart: HeartAccumulator
 }
 
 function progressOf(session: ActiveSession, state: EngineState) {
@@ -79,6 +91,8 @@ function progressOf(session: ActiveSession, state: EngineState) {
     // Mismo cálculo que el "Tiempo total" que ve el usuario en pantalla.
     durationSeconds: Math.floor(state.totalElapsedMs / 1000),
     rounds: session.kind === "stopwatch" ? 0 : completedWorkSegments(session.plan, state),
+    // null si no hubo sensor o midió menos de 10 s: entonces no se guarda ningún pulso.
+    heart: summarizeHeart(session.heart),
   }
 }
 
@@ -88,7 +102,7 @@ function buildPlan(mode: TimerMode, routine: SavedRoutine | null | undefined): S
   return buildIntervalPlan(modeConfigs[mode])
 }
 
-export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings, onSessionEnd, onCheckpoint }: WorkoutTimerProps) {
+export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings, onSessionEnd, onCheckpoint, sets, onLogSet }: WorkoutTimerProps) {
   const [mode, setMode] = useState<TimerMode>(preloadedRoutine ? "routine" : "tabata")
   const [isRunning, setIsRunning] = useState(false)
   const [engine, setEngine] = useState<EngineState>(createInitialState)
@@ -97,6 +111,12 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
   const sessionRef = useRef<ActiveSession | null>(null)
   const onSessionEndRef = useRef(onSessionEnd)
   const onCheckpointRef = useRef(onCheckpoint)
+  const heartRate = useHeartRate()
+  const bpmRef = useRef<number | null>(null)
+  const [pending, setPending] = useState<PendingSet[]>([])
+  const [savedNotice, setSavedNotice] = useState<string | null>(null)
+  const lastSessionIdRef = useRef<string | null>(null)
+  const loggedInSessionRef = useRef(0)
 
   // El plan solo cambia si cambia el modo o la rutina cargada.
   const plan = useMemo(() => buildPlan(mode, preloadedRoutine), [mode, preloadedRoutine])
@@ -107,6 +127,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
   useEffect(() => {
     onSessionEndRef.current = onSessionEnd
     onCheckpointRef.current = onCheckpoint
+    bpmRef.current = heartRate.bpm
   })
 
   // ---- Registro de sesiones (historial) ----
@@ -115,7 +136,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
   const writeCheckpoint = useCallback(() => {
     const s = sessionRef.current
     if (!s) return
-    const { durationSeconds, rounds } = progressOf(s, engineRef.current)
+    const { durationSeconds, rounds, heart } = progressOf(s, engineRef.current)
     onCheckpointRef.current?.({
       id: s.id,
       startedAt: new Date(s.startedAtMs).toISOString(),
@@ -125,6 +146,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
       routineId: s.routineId,
       routineName: s.routineName,
       rounds,
+      ...(heart ?? {}),
     })
   }, [])
 
@@ -139,11 +161,13 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
     const s = sessionRef.current
     if (!s) return
     sessionRef.current = null
+    lastSessionIdRef.current = s.id // las series pendientes de esta sesión aún se pueden registrar
     onCheckpointRef.current?.(null)
 
-    const { durationSeconds, rounds } = progressOf(s, engineRef.current)
+    const { durationSeconds, rounds, heart } = progressOf(s, engineRef.current)
     if (durationSeconds <= 0) return
-    if (!finishedNaturally && durationSeconds < MIN_SESSION_SECONDS) return
+    // Una sesión corta se descarta, salvo que el usuario ya haya registrado series en ella (son datos suyos).
+    if (!finishedNaturally && durationSeconds < MIN_SESSION_SECONDS && loggedInSessionRef.current === 0) return
 
     onSessionEndRef.current?.({
       id: s.id,
@@ -155,6 +179,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
       routineName: s.routineName,
       rounds,
       completed: finishedNaturally || s.kind === "stopwatch",
+      ...(heart ?? {}),
     })
   }, [])
 
@@ -170,6 +195,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
     engineRef.current = fresh
     setEngine(fresh)
     setIsRunning(false)
+    setPending([])
   }, [plan, finalizeSession])
 
   // Aplica un nuevo estado del motor y dispara los avisos. Sin efectos dentro de setState.
@@ -178,6 +204,30 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
       const prev = engineRef.current
       engineRef.current = next
       setEngine(next)
+      // Rutinas: cada serie de trabajo que se completa queda "pendiente de registrar" (peso y reps que confirme el usuario).
+      if (mode === "routine" && preloadedRoutine) {
+        const done = completedWorkIndices(plan, prev, next)
+        const sessionId = sessionRef.current?.id ?? lastSessionIdRef.current
+        if (done.length > 0 && sessionId) {
+          const added: PendingSet[] = []
+          for (const index of done) {
+            const seg = plan[index]
+            const block = preloadedRoutine.exercises[seg.exerciseIndex]
+            if (!block) continue
+            added.push({
+              key: `${sessionId}:${index}`,
+              sessionId,
+              exerciseId: block.exerciseId,
+              exerciseName: block.exerciseName,
+              setNumber: seg.round,
+              totalSets: seg.totalRounds,
+              isTime: block.isTime,
+              plannedReps: block.reps,
+            })
+          }
+          if (added.length > 0) setPending((queue) => [...queue, ...added.filter((a) => !queue.some((q) => q.key === a.key))])
+        }
+      }
       if (withSound) {
         const signal = describeTransition(plan, prev, next)
         if (signal) playSignal(signal)
@@ -187,7 +237,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
         setIsRunning(false)
       }
     },
-    [plan, finalizeSession]
+    [plan, finalizeSession, mode, preloadedRoutine]
   )
 
   // Bucle del reloj: mide tiempo REAL entre ticks (no cuenta ticks), así no se atrasa.
@@ -198,6 +248,13 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
       const now = Date.now()
       const delta = now - lastTickRef.current
       lastTickRef.current = now
+
+      // Pulso: el tiempo que pasó desde el tick anterior se atribuye al último pulso válido del sensor.
+      // Va ANTES de commit: si este tick termina la sesión, esa última fracción debe entrar en el resumen.
+      const bpm = bpmRef.current
+      const active = sessionRef.current
+      if (active && bpm !== null) active.heart = addHeartSample(active.heart, bpm, delta)
+
       commit(advance(plan, engineRef.current, delta), true)
 
       const session = sessionRef.current
@@ -274,7 +331,10 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
         routineName: mode === "routine" ? preloadedRoutine?.name : undefined,
         plan,
         lastCheckpointMs: now,
+        heart: emptyHeart(),
       }
+      loggedInSessionRef.current = 0
+      setPending([])
       writeCheckpoint()
     }
     setIsRunning(true)
@@ -293,6 +353,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
     engineRef.current = fresh
     setEngine(fresh)
     setIsRunning(false)
+    setPending([])
   }
 
   const handleClearRoutine = () => {
@@ -300,6 +361,34 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
     setMode("tabata")
     handleReset()
   }
+
+  // ---- Registro de series ----
+  useEffect(() => {
+    if (!savedNotice) return
+    const id = setTimeout(() => setSavedNotice(null), 3500)
+    return () => clearTimeout(id)
+  }, [savedNotice])
+
+  const currentPending = pending[0]
+  const suggestion = currentPending
+    ? suggestSet(sets, { exerciseId: currentPending.exerciseId, isTime: currentPending.isTime, reps: currentPending.plannedReps })
+    : { weightKg: 0, reps: null }
+
+  const handleSaveSet = (entry: { weightKg: number; reps: number | null }) => {
+    if (!currentPending) return
+    const set = makeSet(
+      { sessionId: currentPending.sessionId, exerciseId: currentPending.exerciseId, exerciseName: currentPending.exerciseName, setNumber: currentPending.setNumber, weightKg: entry.weightKg, reps: currentPending.isTime ? null : entry.reps },
+      new Date()
+    )
+    if (!set) return // los campos no eran válidos: el botón ya está deshabilitado, esto es solo una red de seguridad
+    const records = detectRecords(sets, set) // se compara ANTES de guardarla
+    onLogSet(set)
+    loggedInSessionRef.current += 1
+    setPending((queue) => queue.slice(1))
+    setSavedNotice(records.weight ? `¡Récord de peso! ${formatKg(set.weightKg)} kg` : records.setVolume ? "¡Mejor serie por volumen!" : "Serie guardada")
+  }
+
+  const handleSkipSet = () => setPending((queue) => queue.slice(1))
 
   // ---- Derivados para pintar la pantalla ----
   const totalSeconds = Math.floor(engine.totalElapsedMs / 1000)
@@ -310,6 +399,11 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
     const left = remainingSeconds(segment, engine.segElapsedMs)
     return left ?? Math.floor(engine.segElapsedMs / 1000) // abierto: cuenta hacia arriba
   })()
+  // Tamaño del número: 120px como máximo, pero sin salirse de la pantalla (ancho de la app: 32rem)
+  // ni ocupar más de ~17% de la altura (así "Iniciar" no queda bajo la barra en móviles bajos).
+  const timeText = formatTime(displayTime)
+  const timeEm = [...timeText].reduce((w, ch) => w + (ch === ":" ? 0.3 : 0.62), 0) * 1.08
+  const timeFontSize = `min(120px, ${pending.length > 0 ? 12 : 17}dvh, calc((min(100vw, 32rem) - 2.5rem) / ${timeEm.toFixed(2)}))`
   const currentExercise =
     mode === "routine" && preloadedRoutine && segment
       ? preloadedRoutine.exercises[segment.exerciseIndex]
@@ -354,9 +448,9 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-24">
+    <div className="min-h-dvh bg-background flex flex-col pb-nav">
       {/* Top Bar */}
-      <header className="flex items-center justify-between px-4 pt-14 pb-4">
+      <header className="flex flex-wrap items-center justify-between gap-y-2 px-4 pt-top pb-3">
         <div>
           <h1 className="text-xl font-bold text-foreground tracking-tight">POWERLOCK</h1>
           <p className="text-xs text-muted-foreground">Timer Pro</p>
@@ -366,7 +460,8 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
           {mode === "routine" && preloadedRoutine && (
             <button
               onClick={handleClearRoutine}
-              className="w-8 h-8 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Salir de la rutina"
+              className="w-10 h-10 rounded-lg bg-secondary/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -383,6 +478,11 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
           </button>
         </div>
       </header>
+
+      {/* Sensor de pulso (Bluetooth): solo muestra datos si un sensor real los envía */}
+      <div className="px-4 mb-3">
+        <HeartRatePill heartRate={heartRate} />
+      </div>
 
       {/* Routine Info Banner */}
       {mode === "routine" && preloadedRoutine && (
@@ -432,13 +532,14 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all ${mode === m
+                  aria-pressed={mode === m}
+                  className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-[11px] leading-tight font-semibold transition-all ${mode === m
                       ? "bg-neon-cyan text-primary-foreground shadow-lg"
                       : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="hidden xs:inline">{modeConfigs[m].name}</span>
+                  <span className="max-w-full truncate">{modeConfigs[m].name}</span>
                 </button>
               )
             })}
@@ -450,7 +551,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
       )}
 
       {/* Main Timer Display */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-8">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-2">
         {/* Phase Label */}
         <div className={`mb-4 px-4 py-1.5 rounded-full text-sm font-bold tracking-wider ${getPhasePill()}`}>
           {getPhaseLabel()}
@@ -459,14 +560,15 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
         {/* Timer */}
         <div className={`relative ${getPhaseBgGlow()} rounded-full transition-all duration-500`}>
           <div className="relative">
-            <span className={`text-[120px] leading-none font-black tabular-nums tracking-tight ${getPhaseColor()} transition-colors duration-300`}
+            <span className={`block max-w-full whitespace-nowrap leading-none font-black tabular-nums tracking-tight ${getPhaseColor()} transition-colors duration-300`}
+              data-testid="time-display"
               style={{
-                fontFamily: "'Inter', sans-serif",
+                fontSize: timeFontSize,
                 fontVariantNumeric: "tabular-nums",
                 textShadow: getPhaseGlow()
               }}
             >
-              {formatTime(displayTime)}
+              {timeText}
             </span>
           </div>
         </div>
@@ -499,8 +601,20 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
         )}
       </div>
 
+      {/* Registro de la serie que acabas de terminar: solo se guarda lo que confirmes */}
+      {mode === "routine" && (pending.length > 0 || savedNotice) && (
+        <div className="px-4 mb-4 space-y-2">
+          {savedNotice && (
+            <p role="status" className="rounded-xl bg-primary/10 px-4 py-2.5 text-center text-sm font-semibold text-primary" data-testid="set-saved">
+              {savedNotice}
+            </p>
+          )}
+          <SetLogCard pending={pending} suggestion={suggestion} onSave={handleSaveSet} onSkip={handleSkipSet} />
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="px-4 pb-10">
+      <div className="px-4 pb-6">
         <div className="relative flex items-center justify-center gap-4">
           {/* Reset */}
           <button
@@ -519,7 +633,7 @@ export function WorkoutTimer({ preloadedRoutine, onClearRoutine, onOpenSettings,
             className={`w-20 h-20 rounded-3xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
               isRunning
                 ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]"
-                : "bg-neon-cyan hover:bg-neon-cyan/90 text-primary-foreground shadow-[0_0_30px_var(--neon-cyan)/40]"
+                : "bg-neon-cyan hover:bg-neon-cyan/90 text-primary-foreground shadow-[0_0_30px_color-mix(in_oklab,var(--neon-cyan)_40%,transparent)]"
             }`}
           >
             {isRunning ? (

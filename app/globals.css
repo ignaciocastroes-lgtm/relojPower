@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -82,8 +81,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -133,4 +132,45 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ---- Utilidades propias (antes se usaban sin estar definidas y no hacían nada) ---- */
+
+/* Oculta la barra de scroll de las filas de chips, pero sigue haciendo scroll. */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Respeta la zona segura del móvil (barra de gestos de iPhone / Android). */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Espacio inferior para que el contenido no quede bajo la barra de navegación (5rem) + zona segura. */
+@utility pb-nav {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Posición del botón flotante: sobre la barra de navegación + zona segura. */
+@utility bottom-nav {
+  bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Margen superior de las cabeceras: 1.5rem + zona segura (notch en horizontal). Antes era 3.5rem fijo: espacio perdido. */
+@utility pt-top {
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
+}
+
+/* Espacio inferior cuando hay botón flotante: barra (5rem) + botón (3.5rem) + márgenes, para que nada quede debajo de él. */
+@utility pb-fab {
+  padding-bottom: calc(11rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Borde derecho del botón flotante: alineado con la columna de la app (32rem) también en pantallas anchas. */
+@utility right-shell {
+  right: max(1.25rem, calc((100vw - 32rem) / 2 + 1.25rem));
 }

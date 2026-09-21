@@ -12,7 +12,13 @@ const jobs: { name: string; file: string; tz?: string }[] = [
   { name: "rutinas (persistencia)", file: "scripts/test-routine-storage.ts" },
   { name: "ajustes (volumen y vibración)", file: "scripts/test-settings.ts" },
   { name: "guarda anti-simulación", file: "scripts/test-no-simulated.ts" },
+  { name: "pulso cardíaco (Bluetooth simulado)", file: "scripts/test-heart-rate.ts" },
+  { name: "catálogo de ejercicios", file: "scripts/test-catalog.ts" },
+  { name: "copia de seguridad", file: "scripts/test-backup.ts" },
+  { name: "app instalable / sin conexión (PWA)", file: "scripts/test-service-worker.ts" },
+  { name: "higiene (deps, CSS, lockfile)", file: "scripts/test-hygiene.ts" },
   ...ZONES.map((tz) => ({ name: `historial [${tz}]`, file: "scripts/test-session-log.ts", tz })),
+  ...ZONES.map((tz) => ({ name: `series y volumen [${tz}]`, file: "scripts/test-set-log.ts", tz })),
 ]
 
 let failed = 0

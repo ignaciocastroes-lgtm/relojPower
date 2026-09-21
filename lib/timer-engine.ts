@@ -186,6 +186,19 @@ export function skipSegment(plan: Segment[], state: EngineState): EngineState {
   return { ...state, index: state.index + 1, segElapsedMs: 0 }
 }
 
+/**
+ * Índices de los segmentos de TRABAJO que se completaron al pasar de `prev` a `next`.
+ * Un solo avance puede cruzar varios (p. ej. tras volver de una pantalla bloqueada).
+ * Saltar (⏭) cuenta como completado, igual que en el historial.
+ */
+export function completedWorkIndices(plan: Segment[], prev: EngineState, next: EngineState): number[] {
+  if (plan.length === 0 || prev.finished) return []
+  const last = next.finished ? plan.length - 1 : next.index - 1
+  const out: number[] = []
+  for (let i = prev.index; i <= last; i++) if (plan[i]?.phase === "work") out.push(i)
+  return out
+}
+
 /* ------------------------------ Lectura ------------------------------ */
 
 /** Segundos que faltan (redondeado hacia arriba), o null si el segmento es abierto. */

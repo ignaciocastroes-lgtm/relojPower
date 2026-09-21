@@ -1,6 +1,6 @@
 "use client"
 
-import { Timer, ClipboardList, History } from "lucide-react"
+import { Timer, ClipboardList, History, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface BottomNavigationProps {
@@ -12,12 +12,13 @@ const tabs = [
   { id: "entrenar", label: "Reloj", icon: Timer },
   { id: "rutinas", label: "Rutinas", icon: ClipboardList },
   { id: "historial", label: "Historial", icon: History },
+  { id: "progreso", label: "Progreso", icon: TrendingUp },
 ]
 
 export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-t border-border/50">
-      <div className="flex items-center justify-around h-20 max-w-lg mx-auto px-2 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border/50 pb-safe">
+      <div className="flex items-center justify-around h-20 max-w-lg mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -27,7 +28,7 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-2xl transition-all duration-300 min-w-[72px]",
+                "flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-2xl transition-all duration-300 min-w-[64px]",
                 isActive 
                   ? "text-neon-cyan" 
                   : "text-muted-foreground hover:text-foreground"

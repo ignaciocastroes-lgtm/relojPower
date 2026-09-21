@@ -18,6 +18,7 @@ import { estimateRoutineMinutes } from "@/lib/timer-engine"
 import { newId } from "@/lib/routine-storage"
 import type { ExerciseBlock, SavedRoutine } from "@/lib/types"
 import { ExerciseLibrary } from "./exercise-library"
+import { ExerciseThumb } from "./exercise-thumb"
 import { cn } from "@/lib/utils"
 
 export interface RoutineDraft {
@@ -46,22 +47,6 @@ function formatRest(seconds: number) {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return s === 0 ? `${m}m` : `${m}m ${s}s`
-}
-
-function ExerciseThumb({ url, name }: { url?: string; name: string }) {
-  const [broken, setBroken] = useState(false)
-  if (!url || broken) {
-    return (
-      <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-        <Dumbbell className="w-5 h-5 text-muted-foreground" />
-      </div>
-    )
-  }
-  return (
-    <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-      <img src={url} alt={name} className="w-full h-full object-cover" onError={() => setBroken(true)} />
-    </div>
-  )
 }
 
 export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: RoutineTimelineBuilderProps) {
@@ -129,9 +114,10 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
   /* ---------------------------- Selector de ejercicio ---------------------------- */
   if (showExercisePicker) {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="fixed inset-0 z-[60] bg-background">
+      <div className="mx-auto flex h-full w-full max-w-lg flex-col">
         <header className="shrink-0 border-b border-border/50 bg-background">
-          <div className="flex items-center justify-between px-5 pt-12 pb-4">
+          <div className="flex items-center justify-between px-5 pt-top pb-4">
             <button
               onClick={() => setShowExercisePicker(false)}
               aria-label="Volver a la rutina"
@@ -149,14 +135,16 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
           <ExerciseLibrary variant="picker" onSelectExercise={handleAddExercise} />
         </div>
       </div>
+      </div>
     )
   }
 
   /* ------------------------------ Editor de rutina ------------------------------ */
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-0 z-[60] bg-background">
+      <div className="mx-auto flex h-full w-full max-w-lg flex-col">
       <header className="shrink-0 border-b border-border/50 bg-background">
-        <div className="flex items-center justify-between px-5 pt-12 pb-4">
+        <div className="flex items-center justify-between px-5 pt-top pb-4">
           <button
             onClick={requestClose}
             aria-label="Cerrar"
@@ -226,7 +214,7 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                 onClick={() => {
                   if (window.confirm("¿Quitar todos los ejercicios?")) setExercises([])
                 }}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                className="px-2 py-2 text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 <RotateCcw className="w-3 h-3" />
                 Limpiar
@@ -268,10 +256,10 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
 
                       <div className="flex-1 min-w-0 bg-secondary/70 rounded-2xl overflow-hidden border border-border/50">
                         {/* Cabecera del bloque */}
-                        <div className="flex items-center gap-3 p-4 bg-secondary/50">
-                          <ExerciseThumb url={block.imageUrl} name={block.exerciseName} />
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4 bg-secondary/50">
+                          <ExerciseThumb url={block.imageUrl} name={block.exerciseName} className="w-12 h-12 rounded-lg flex-shrink-0" />
 
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-[7rem]">
                             <h4 className="font-semibold text-foreground truncate">{block.exerciseName}</h4>
                             <p className="text-xs text-muted-foreground truncate">
                               {[block.bodyPart, block.equipment].filter(Boolean).join(" • ")}
@@ -279,12 +267,12 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                           </div>
 
                           {/* Reordenar y borrar */}
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 ml-auto">
                             <button
                               onClick={() => moveBlock(index, -1)}
                               disabled={index === 0}
                               aria-label="Subir ejercicio"
-                              className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-secondary/80 transition-colors"
+                              className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-secondary/80 transition-colors"
                             >
                               <ChevronUp className="w-4 h-4" />
                             </button>
@@ -292,14 +280,14 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                               onClick={() => moveBlock(index, 1)}
                               disabled={index === exercises.length - 1}
                               aria-label="Bajar ejercicio"
-                              className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-secondary/80 transition-colors"
+                              className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground disabled:opacity-30 hover:bg-secondary/80 transition-colors"
                             >
                               <ChevronDown className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => deleteBlock(block.id)}
                               aria-label="Eliminar ejercicio"
-                              className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                              className="w-10 h-10 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -308,15 +296,15 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
 
                         {/* Controles */}
                         <div className="p-4 space-y-4">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-4">
                             {/* Series */}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-[8.5rem]">
                               <label className="block text-xs text-muted-foreground mb-1.5">Series</label>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => updateBlock(block.id, { sets: Math.max(1, block.sets - 1) })}
                                   aria-label="Menos series"
-                                  className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
+                                  className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
                                 >
                                   -
                                 </button>
@@ -326,7 +314,7 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                                 <button
                                   onClick={() => updateBlock(block.id, { sets: Math.min(SETS_MAX, block.sets + 1) })}
                                   aria-label="Más series"
-                                  className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
+                                  className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
                                 >
                                   +
                                 </button>
@@ -334,14 +322,14 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                             </div>
 
                             {/* Repeticiones o segundos */}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-[8.5rem]">
                               <div className="flex items-center justify-between mb-1.5">
                                 <label className="text-xs text-muted-foreground">
                                   {block.isTime ? "Segundos" : "Reps"}
                                 </label>
                                 <button
                                   onClick={() => updateBlock(block.id, { isTime: !block.isTime })}
-                                  className="text-[10px] text-primary hover:underline"
+                                  className="px-2 py-2 text-xs text-primary hover:underline"
                                 >
                                   {block.isTime ? "Usar reps" : "Usar tiempo"}
                                 </button>
@@ -357,7 +345,7 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                                     )
                                   }
                                   aria-label={block.isTime ? "Menos segundos" : "Menos repeticiones"}
-                                  className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
+                                  className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
                                 >
                                   -
                                 </button>
@@ -374,7 +362,7 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
                                     )
                                   }
                                   aria-label={block.isTime ? "Más segundos" : "Más repeticiones"}
-                                  className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
+                                  className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
                                 >
                                   +
                                 </button>
@@ -431,7 +419,7 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
         </div>
       </div>
 
-      <div className="shrink-0 p-5 border-t border-border/50 bg-background">
+      <div className="shrink-0 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] border-t border-border/50 bg-background">
         <button
           onClick={handleSave}
           disabled={!canSave}
@@ -447,5 +435,6 @@ export function RoutineTimelineBuilder({ initialRoutine, onClose, onSave }: Rout
         </button>
       </div>
     </div>
+      </div>
   )
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import './globals.css'
 
 const inter = Inter({ 
@@ -11,7 +12,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'POWERLOCK Timer - Powerlifting & Functional Training',
   description: 'Temporizador profesional para powerlifting, CrossFit y entrenamiento funcional',
-  generator: 'v0.app',
+  applicationName: 'POWERLOCK',
+  appleWebApp: { capable: true, title: 'POWERLOCK', statusBarStyle: 'default' },
   icons: {
     icon: [
       {
@@ -35,8 +37,9 @@ export const viewport: Viewport = {
   themeColor: '#0d0d0d',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Cubre toda la pantalla (notch / barra de gestos); las zonas seguras se respetan con `pb-safe`.
+  // El zoom NO se bloquea: es una barrera de accesibilidad.
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -48,6 +51,7 @@ export default function RootLayout({
     <html lang="es" className="dark bg-background">
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
+        <ServiceWorkerRegister />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
